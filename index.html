@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PowerPoint File Hub</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Configure a custom font and smooth scrolling */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f7f9;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen">
+
+    <div class="max-w-4xl mx-auto">
+        <header class="mb-8 text-center bg-white p-6 rounded-lg shadow-lg">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Presentation Library</h1>
+            <p class="text-gray-500">Preview and download your latest Microsoft PowerPoint files.</p>
+        </header>
+
+        <!-- Dynamic List Container -->
+        <div id="presentation-list" class="space-y-4">
+            <!-- Presentations will be injected here by JavaScript -->
+        </div>
+
+        <footer class="mt-10 text-center text-sm text-gray-400 p-4">
+            <p>&copy; 2025 File Hub. Hosted via GitHub Pages.</p>
+        </footer>
+
+        <!-- Modal for Previewing -->
+        <div id="preview-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden">
+                <div class="p-4 flex justify-between items-center border-b">
+                    <h2 class="text-xl font-semibold text-gray-800" id="modal-title">Presentation Preview</h2>
+                    <button onclick="closeModal()" class="text-gray-500 hover:text-gray-800 transition">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <iframe id="preview-iframe" class="flex-grow w-full border-0" allowfullscreen></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // IMPORTANT SETUP:
+        // 1. UPLOAD your .pptx files into a folder named 'files' in your GitHub repository root.
+        // 2. REPLACE the GITHUB_PAGES_BASE_URL below with your actual, live GitHub Pages URL.
+        //    (e.g., "https://myusername.github.io/my-repo-name/files/")
+        const GITHUB_PAGES_BASE_URL = "https://YOUR-USERNAME.github.io/YOUR-REPO-NAME/files/";
+        
+        // Mock data representing your files and their display titles
+        const presentations = [
+            { title: "Q3 2024 Project Review", filename: "Q3_Review.pptx" },
+            { title: "Marketing Strategy 2025", filename: "Marketing_Strategy.pptx" },
+            { title: "Team Onboarding Guide", filename: "Onboarding_Guide.pptx" },
+            { title: "Financial Forecast H1 2025", filename: "Forecast_H1.pptx" }
+        ];
+
+        const listContainer = document.getElementById('presentation-list');
+        const modal = document.getElementById('preview-modal');
+        const iframe = document.getElementById('preview-iframe');
+        const modalTitle = document.getElementById('modal-title');
+
+        /**
+         * Generates the URL for the Google Docs Viewer to display the presentation.
+         * @param {string} filename - The name of the file to preview.
+         * @returns {string} The full preview URL.
+         */
+        function generatePreviewUrl(filename) {
+            const fileUrl = GITHUB_PAGES_BASE_URL + filename;
+            // The viewer expects the URL to the public file.
+            // Using &embedded=true ensures it tries to fit better in an iframe.
+            return `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+        }
+
+        /**
+         * Opens the modal and loads the preview iframe.
+         * @param {string} title - The title of the presentation.
+         * @param {string} filename - The name of the file.
+         */
+        function openModal(title, filename) {
+            const previewUrl = generatePreviewUrl(filename);
+            
+            modalTitle.textContent = 'Preview: ' + title;
+            iframe.src = previewUrl;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.body.style.overflow = 'hidden'; // Prevent scrolling background
+        }
+
+        function closeModal() {
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+            iframe.src = ''; // Clear iframe content
+            document.body.style.overflow = ''; // Restore scrolling
+        }
+
+        /**
+         * Renders the list of presentations onto the page.
+         */
+        function renderList() {
+            listContainer.innerHTML = presentations.map(p => {
+                const downloadPath = `./files/${p.filename}`; // Direct download link
+                
+                return `
+                    <div class="bg-white p-4 sm:p-6 rounded-xl shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center transition duration-200 hover:shadow-lg hover:ring-2 hover:ring-indigo-200">
+                        <div class="mb-3 sm:mb-0">
+                            <h3 class="text-lg font-semibold text-gray-800">${p.title}</h3>
+                            <p class="text-sm text-gray-500">${p.filename}</p>
+                        </div>
+                        <div class="flex space-x-3">
+                            <button 
+                                onclick="openModal('${p.title}', '${p.filename}')"
+                                class="flex items-center px-4 py-2 bg-indigo-500 text-white text-sm font-medium rounded-lg shadow-md hover:bg-indigo-600 transition duration-150 transform hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.55-4.55a1 1 0 011.41 1.41L16.41 12l4.55 4.55a1 1 0 01-1.41 1.41L15 13.41l-4.55 4.55a1 1 0 01-1.41-1.41L13.59 12 9.04 7.45a1 1 0 011.41-1.41L15 10z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.6 15h-.6a3 3 0 01-3-3v-2a3 3 0 013-3h.6m9.8 0h.6a3 3 0 013 3v2a3 3 0 01-3 3h-.6"></path></svg>
+                                Preview
+                            </button>
+                            <a 
+                                href="${downloadPath}" 
+                                download 
+                                class="flex items-center px-4 py-2 border border-indigo-500 text-indigo-500 text-sm font-medium rounded-lg shadow-md hover:bg-indigo-50 transition duration-150 transform hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                            >
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                Download
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.onload = renderList;
+        window.closeModal = closeModal; // Expose to global scope for HTML inline handler
+    </script>
+</body>
+</html>
