@@ -24,7 +24,14 @@
 
         <!-- Dynamic List Container -->
         <div id="presentation-list" class="space-y-4">
-            <!-- Presentations will be injected here by JavaScript -->
+            <!-- Loading indicator or Presentations will be injected here -->
+            <div id="loading-spinner" class="text-center p-8 text-gray-500">
+                <svg class="animate-spin h-8 w-8 text-blue-800 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="mt-2">Fetching file list from GitHub...</p>
+            </div>
         </div>
 
         <footer class="mt-10 text-center text-sm text-gray-400 p-4">
@@ -34,46 +41,120 @@
     </div>
 
     <script>
-        // IMPORTANT SETUP:
-        // 1. UPLOAD your .pptx files into a folder named 'files' in your GitHub repository root.
-        
-        // Mock data representing your files and their display titles
-        const presentations = [
-            { title: "Q3 2024 Project Review", filename: "Q3_Review.pptx" },
-            { title: "Marketing Strategy 2025", filename: "Marketing_Strategy.pptx" },
-            { title: "Team Onboarding Guide", filename: "Onboarding_Guide.pptx" },
-            { title: "Financial Forecast H1 2025", filename: "Forecast_H1.pptx" }
-        ];
+        // --- GitHub API Configuration ---
+        const REPO_OWNER = "rielyg";
+        const REPO_NAME = "slidesite";
+        const FILES_PATH = "files"; // The folder containing your presentations
+        const GITHUB_API_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILES_PATH}`;
 
         const listContainer = document.getElementById('presentation-list');
+        const loadingSpinner = document.getElementById('loading-spinner');
 
         /**
-         * Renders the list of presentations onto the page, only including the download link.
+         * Converts a filename (e.g., "Q3_Review.pptx") into a nice title (e.g., "Q3 Review").
+         * @param {string} filename 
+         * @returns {string} Cleaned title
          */
-        function renderList() {
-            listContainer.innerHTML = presentations.map(p => {
-                // The downloadPath is relative to the index.html file location
-                const downloadPath = `./files/${p.filename}`; 
-                
-                return `
-                    <div class="bg-white p-4 sm:p-6 rounded-xl shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center transition duration-200 hover:shadow-lg hover:ring-2 hover:ring-indigo-200">
-                        <div class="mb-3 sm:mb-0">
-                            <h3 class="text-lg font-semibold text-gray-800">${p.title}</h3>
-                            <p class="text-sm text-gray-500">${p.filename}</p>
+        function formatTitle(filename) {
+            // Remove file extension (.pptx)
+            let title = filename.replace(/\.[^/.]+$/, "");
+            // Replace underscores with spaces
+            title = title.replace(/_/g, ' ');
+            // Make sure the first letter of each word is capitalized
+            title = title.toLowerCase().split(' ').map(word => {
+                return (word.charAt(0).toUpperCase() + word.slice(1));
+            }).join(' ');
+            return title;
+        }
+
+        /**
+         * Fetches data from a URL with exponential backoff retry logic.
+         */
+        async function fetchWithRetry(url, options = {}, retries = 3) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    if (i === retries - 1) throw error;
+                    // Exponential backoff: 1s, 2s, 4s delay
+                    const delay = Math.pow(2, i) * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+
+        /**
+         * Fetches the file list from the GitHub API and renders the list.
+         */
+        async function renderList() {
+            listContainer.innerHTML = ''; // Clear initial content
+            loadingSpinner.style.display = 'block'; // Show spinner
+
+            try {
+                // Fetch the directory contents using the GitHub API
+                const data = await fetchWithRetry(GITHUB_API_URL);
+
+                // Filter data to only include PowerPoint files
+                const presentations = data
+                    .filter(item => item.type === 'file' && item.name.toLowerCase().endsWith('.pptx'))
+                    .map(item => ({
+                        title: formatTitle(item.name),
+                        filename: item.name
+                    }));
+
+                loadingSpinner.style.display = 'none'; // Hide spinner
+
+                if (presentations.length === 0) {
+                    listContainer.innerHTML = `
+                        <p class="text-center p-8 text-gray-500 bg-white rounded-xl shadow-md">
+                            No PowerPoint files found in the <code>${FILES_PATH}</code> directory.
+                        </p>
+                    `;
+                    return;
+                }
+
+                // Render the presentation list
+                const htmlContent = presentations.map(p => {
+                    // The downloadPath uses a relative path, which works best with GitHub Pages
+                    const downloadPath = `./${FILES_PATH}/${p.filename}`; 
+                    
+                    return `
+                        <div class="bg-white p-4 sm:p-6 rounded-xl shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center transition duration-200 hover:shadow-lg hover:ring-2 hover:ring-blue-200">
+                            <div class="mb-3 sm:mb-0">
+                                <h3 class="text-lg font-semibold text-gray-800">${p.title}</h3>
+                                <p class="text-sm text-gray-500">${p.filename}</p>
+                            </div>
+                            <div class="flex space-x-3">
+                                <a 
+                                    href="${downloadPath}" 
+                                    download 
+                                    class="flex items-center px-4 py-2 bg-blue-800 text-white text-sm font-medium rounded-lg shadow-md hover:bg-blue-700 transition duration-150 transform hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-blue-800 focus:ring-offset-2"
+                                >
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                    Download File
+                                </a>
+                            </div>
                         </div>
-                        <div class="flex space-x-3">
-                            <a 
-                                href="${downloadPath}" 
-                                download 
-                                class="flex items-center px-4 py-2 bg-blue-800 text-white text-sm font-medium rounded-lg shadow-md hover:bg-blue-700 transition duration-150 transform hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-blue-800 focus:ring-offset-2"
-                            >
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                Download File
-                            </a>
-                        </div>
+                    `;
+                }).join('');
+
+                listContainer.innerHTML = htmlContent;
+
+            } catch (error) {
+                console.error("Failed to fetch file list from GitHub API:", error);
+                loadingSpinner.style.display = 'none';
+                listContainer.innerHTML = `
+                    <div class="text-center p-8 text-red-600 bg-red-100 border border-red-300 rounded-xl shadow-md">
+                        <p class="font-semibold mb-2">Error loading files.</p>
+                        <p class="text-sm">Please ensure your GitHub repository is public and the folder <code>files</code> exists.</p>
+                        <p class="text-xs mt-2 text-red-500">(${error.message})</p>
                     </div>
                 `;
-            }).join('');
+            }
         }
 
         window.onload = renderList;
