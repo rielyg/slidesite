@@ -28,7 +28,7 @@
         </div>
 
         <footer class="mt-10 text-center text-sm text-gray-400 p-4">
-            <p>&copy; 2025 File Hub.</p>
+            <p>&copy; 2025 File Hub. Hosted via GitHub Pages.</p>
         </footer>
 
         <!-- Modal for Previewing -->
@@ -71,7 +71,7 @@
          * @returns {string} The full preview URL.
          */
         function generatePreviewUrl(filename) {
-            const fileUrl = https://github.com/rielyg/slidesite/blob/main/files/2025%20Atlanta%20Lung%20KRAS%20%20debate%20Riely.pptx;
+            const fileUrl = GITHUB_PAGES_BASE_URL + filename;
             // The viewer expects the URL to the public file.
             // Using &embedded=true ensures it tries to fit better in an iframe.
             return `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
